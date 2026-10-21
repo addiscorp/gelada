@@ -1,0 +1,9 @@
+gelada
+Copyright 2026 Addis Corp
+
+src/seatbelt_base.sbpl and src/seatbelt_network.sbpl are forked from OpenAI
+Codex (https://github.com/openai/codex, codex-rs/sandboxing/src, commit
+696b4502dfaacd91133c3691a23dc91ae3b14bc9), licensed under the Apache License,
+Version 2.0. Codex's policies are in turn based on Chromium's macOS sandbox
+policies (BSD-3-Clause). gelada's own file, network and secret rules are added
+after them in src/macos.rs.
