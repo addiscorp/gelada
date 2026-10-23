@@ -26,7 +26,15 @@ pub(crate) fn profile(sandbox: &Sandbox) -> (String, Vec<(String, String)>) {
     for (index, path) in sandbox.writable().iter().enumerate() {
         let key = format!("WRITE_{index}");
         profile.push_str(&format!("(allow file-write* (subpath (param \"{key}\")))\n"));
-        params.push((key, real_path(path).to_string_lossy().into_owned()));
+        let real = real_path(path);
+        // A writable unix socket (Docker's, say) can be connected to, with
+        // the network on or off: Seatbelt counts connecting as network.
+        if is_socket(&real) {
+            profile.push_str(&format!(
+                "(allow network-outbound (remote unix-socket (path-literal (param \"{key}\"))))\n"
+            ));
+        }
+        params.push((key, real.to_string_lossy().into_owned()));
     }
 
     // Later rules win: the secrets are carved out of everything above.
@@ -43,6 +51,11 @@ pub(crate) fn profile(sandbox: &Sandbox) -> (String, Vec<(String, String)>) {
         profile.push_str("\n(allow network-outbound)\n(allow network-inbound)\n");
     }
     (profile, params)
+}
+
+fn is_socket(path: &std::path::Path) -> bool {
+    use std::os::unix::fs::FileTypeExt;
+    std::fs::metadata(path).is_ok_and(|meta| meta.file_type().is_socket())
 }
 
 pub(crate) fn command(sandbox: &Sandbox, program: &OsStr) -> Result<Command, Error> {

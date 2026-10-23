@@ -158,3 +158,36 @@ fn credentials_are_not_in_the_environment() {
     let out = sh(&sandbox(&w).keep_env("KEEP_TOKEN"), script);
     assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "t= k= p=visible keep=kept");
 }
+
+#[test]
+fn a_writable_file_is_writable_and_stays_a_file() {
+    let w = world();
+    let file = w.outside.join("granted.txt");
+    std::fs::write(&file, "before").unwrap();
+    let sandbox = sandbox(&w).allow_write(&file);
+    let wrote = sh(&sandbox, &format!("echo after > {}", quote(&file)));
+    assert!(ok(&wrote), "{wrote:?}");
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), "after\n");
+    let beside = sh(&sandbox, &format!("echo pwned > {}", quote(&w.outside.join("beside.txt"))));
+    assert!(!ok(&beside), "wrote beside the granted file: {beside:?}");
+}
+
+/// A program given a unix socket (Docker's, say) reaches the server behind it.
+#[test]
+fn a_writable_socket_can_be_connected_to() {
+    use std::io::{Read, Write};
+    let w = world();
+    let socket = w.outside.join("server.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+    std::thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            let mut request = [0u8; 1024];
+            let _ = stream.read(&mut request);
+            let _ = stream.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 5\r\nconnection: close\r\n\r\nhello");
+        }
+    });
+    let sandbox = sandbox(&w).allow_write(&socket);
+    let out = sh(&sandbox, &format!("curl -s --unix-socket {} http://local/", quote(&socket)));
+    assert!(ok(&out), "{out:?}");
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "hello");
+}

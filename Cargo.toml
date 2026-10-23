@@ -1,6 +1,6 @@
 [package]
 name = "gelada"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.88"
 description = "Run a program in an OS sandbox, without a container: reads everything but secrets, writes only where allowed, network on or off. macOS (Seatbelt) and Linux (Landlock + seccomp)."
