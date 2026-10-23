@@ -51,7 +51,11 @@ pub(crate) fn command(sandbox: &Sandbox, program: &OsStr) -> Result<Command, Err
     allow_except(Path::new("/"), &secrets, &mut reads);
     let mut writes = Vec::new();
     for path in sandbox.writable() {
-        std::fs::create_dir_all(&path).map_err(|err| Error::Io(path.clone(), err))?;
+        // A writable folder that isn't there yet is made; an existing path
+        // stays what it is (a file, or a socket such as Docker's).
+        if !path.exists() {
+            std::fs::create_dir_all(&path).map_err(|err| Error::Io(path.clone(), err))?;
+        }
         let path = real_path(&path);
         if secrets.iter().any(|secret| path.starts_with(secret)) {
             continue;
